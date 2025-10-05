@@ -205,3 +205,15 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Ignorar diretórios de dados e modelos gerados
+data/
+models/
+
+# Ignorar cache do Python
+__pycache__/
+*.pyc
+
+# Ignorar ambiente virtual
+venv/
+.venv/
