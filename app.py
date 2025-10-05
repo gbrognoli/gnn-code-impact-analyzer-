@@ -1,4 +1,4 @@
-# app.py (versão final corrigida)
+# app.py (versão autossuficiente e final)
 import streamlit as st
 import torch
 import networkx as nx
@@ -51,17 +51,15 @@ def setup_and_load():
     # Carrega os arquivos
     device = torch.device('cpu')
     
-    # ===================== A CORREÇÃO ESTÁ AQUI =====================
     # Adicionamos 'weights_only=False' porque nosso arquivo de dados
     # contém um objeto Python complexo (Data), e não apenas pesos.
     data = torch.load(DATA_PATH, map_location=device, weights_only=False)
-    # ================================================================
     
     num_features = data.num_node_features
     num_classes = len(data.y.unique())
     
     model = GCN(num_node_features=num_features, num_classes=num_classes)
-    # Para carregar o state_dict, o padrão weights_only=True é seguro e correto.
+    # Para carregar o state_dict, o padrão weights_only=True é seguro e correto na maioria das versões recentes.
     model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
     model.eval()
     
@@ -71,45 +69,33 @@ def setup_and_load():
 try:
     model, data = setup_and_load()
 
-    # Executa a predição
-    with torch.no_grad():
-        out = model(data)
-        predictions = out.argmax(dim=1)
+    # O resto do código da interface do usuário continua aqui...
+    # (O código da UI não precisa ser alterado)
 
     impact_map = {0: 'Baixo Impacto', 1: 'Médio Impacto', 2: 'Alto Impacto (Core)'}
     color_map = {0: '#2ecc71', 1: '#f1c40f', 2: '#e74c3c'}
-
-    # Interface do Usuário
+    
     col1, col2 = st.columns([1, 2])
     with col1:
         st.header("Análise do Grafo")
-        selected_file = st.selectbox(
-            "Selecione um arquivo para inspecionar:",
-            options=data.file_names
-        )
+        selected_file = st.selectbox("Selecione um arquivo para inspecionar:", options=data.file_names)
         selected_node_idx = data.file_names.index(selected_file)
-        predicted_class = predictions[selected_node_idx].item()
+        predicted_class = model(data).argmax(dim=1)[selected_node_idx].item()
         st.markdown(f"Arquivo: **{selected_file}**")
         st.markdown(f"Impacto Previsto: <span style='color:{color_map[predicted_class]}; font-weight:bold;'>{impact_map[predicted_class]}</span>", unsafe_allow_html=True)
         st.subheader("Legenda de Impacto")
         for i in range(len(impact_map)):
             st.markdown(f"<span style='color:{color_map[i]};'>●</span> {impact_map[i]}", unsafe_allow_html=True)
-        st.subheader("Métricas do Arquivo (Simuladas)")
-        st.text(f"Linhas de Código (norm): {data.x[selected_node_idx][0]:.2f}")
-        st.text(f"Nº de Funções (norm): {data.x[selected_node_idx][1]:.2f}")
     with col2:
         st.header("Visualização do Grafo de Dependências")
         vis_graph = to_networkx(data, to_undirected=False)
-        node_colors = [color_map[pred.item()] for pred in predictions]
+        node_colors = [color_map[pred.item()] for pred in model(data).argmax(dim=1)]
         fig, ax = plt.subplots(figsize=(12, 10))
         pos = nx.spring_layout(vis_graph, seed=42)
-        nx.draw_networkx_nodes(vis_graph, pos, node_color=node_colors, node_size=500, ax=ax)
-        nx.draw_networkx_edges(vis_graph, pos, arrowstyle='->', arrowsize=15, alpha=0.6, ax=ax)
+        nx.draw_networkx(vis_graph, pos, node_color=node_colors, with_labels=False, node_size=500, ax=ax)
+        nx.draw_networkx_labels(vis_graph, pos, labels={i: name for i, name in enumerate(data.file_names)}, font_size=8)
         nx.draw_networkx_nodes(vis_graph, pos, nodelist=[selected_node_idx], node_color='cyan', edgecolors='black', node_size=700)
-        labels = {i: name for i, name in enumerate(data.file_names)}
-        nx.draw_networkx_labels(vis_graph, pos, labels=labels, font_size=8, font_color='black')
         ax.set_title("Grafo da Codebase - Cores por Impacto Previsto")
-        plt.axis('off')
         st.pyplot(fig)
 
 except Exception as e:
