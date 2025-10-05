@@ -1,4 +1,4 @@
-# app.py (versão aprimorada)
+# app.py (versão final corrigida)
 import streamlit as st
 import torch
 import networkx as nx
@@ -50,12 +50,18 @@ def setup_and_load():
 
     # Carrega os arquivos
     device = torch.device('cpu')
-    data = torch.load(DATA_PATH, map_location=device)
+    
+    # ===================== A CORREÇÃO ESTÁ AQUI =====================
+    # Adicionamos 'weights_only=False' porque nosso arquivo de dados
+    # contém um objeto Python complexo (Data), e não apenas pesos.
+    data = torch.load(DATA_PATH, map_location=device, weights_only=False)
+    # ================================================================
     
     num_features = data.num_node_features
     num_classes = len(data.y.unique())
     
     model = GCN(num_node_features=num_features, num_classes=num_classes)
+    # Para carregar o state_dict, o padrão weights_only=True é seguro e correto.
     model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
     model.eval()
     
