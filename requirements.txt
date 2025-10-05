@@ -1,1 +1,6 @@
-
+torch
+torch-geometric
+streamlit
+networkx
+matplotlib
+scikit-learn
